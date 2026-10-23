@@ -1,0 +1,85 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Applicant {
+  id            String        @id @default(uuid())
+  firstName     String        @map("first_name")
+  lastName      String        @map("last_name")
+  email         String        @unique
+  phone         String?
+  taxId         String        @unique @map("tax_id")
+  annualIncome  Decimal       @map("annual_income") @db.Decimal(12, 2)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  loanRequests  LoanRequest[]
+
+  @@map("applicants")
+}
+
+model LoanRequest {
+  id                  String          @id @default(uuid())
+  applicantId         String          @map("applicant_id")
+  amount              Decimal         @db.Decimal(12, 2)
+  term                Int
+  purpose             String?
+  status              LoanRequestStatus @default(PENDING)
+  debtToIncomeRatio   Decimal?        @map("debt_to_income_ratio") @db.Decimal(5, 4)
+  creditScore         Int?            @map("credit_score")
+  notes               String?
+  reviewedBy          String?         @map("reviewed_by")
+  reviewDate          DateTime?       @map("review_date")
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @updatedAt @map("updated_at")
+
+  applicant           Applicant       @relation(fields: [applicantId], references: [id])
+  loan                Loan?
+
+  @@index([applicantId])
+  @@index([status])
+  @@map("loan_requests")
+}
+
+model Loan {
+  id                  String      @id @default(uuid())
+  loanRequestId       String      @unique @map("loan_request_id")
+  status              LoanStatus  @default(ACTIVE)
+  principalAmount     Decimal     @map("principal_amount") @db.Decimal(12, 2)
+  interestRate        Decimal     @map("interest_rate") @db.Decimal(5, 4)
+  monthlyPayment      Decimal     @map("monthly_payment") @db.Decimal(10, 2)
+  termMonths          Int         @map("term_months")
+  startDate           DateTime    @map("start_date") @db.Date
+  endDate             DateTime    @map("end_date") @db.Date
+  totalPaid           Decimal     @map("total_paid") @db.Decimal(12, 2) @default(0)
+  remainingBalance    Decimal     @map("remaining_balance") @db.Decimal(12, 2)
+  defaultDate         DateTime?   @map("default_date")
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
+
+  loanRequest         LoanRequest @relation(fields: [loanRequestId], references: [id])
+
+  @@index([loanRequestId])
+  @@index([status])
+  @@map("loans")
+}
+
+enum LoanRequestStatus {
+  PENDING     @map("PENDING")
+  APPROVED    @map("APPROVED")
+  REJECTED    @map("REJECTED")
+  UNDER_REVIEW @map("UNDER_REVIEW")
+  CANCELLED   @map("CANCELLED")
+}
+
+enum LoanStatus {
+  ACTIVE      @map("ACTIVE")
+  PAID        @map("PAID")
+  DEFAULTED   @map("DEFAULTED")
+  CANCELLED   @map("CANCELLED")
+}
